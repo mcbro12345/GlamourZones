@@ -51,10 +51,30 @@ If you use Glamourer, its designs and automation can cover your plates. The plug
 - Drag rules to change their order. More specific rules should go above general ones.
 - Rules can be copied to the clipboard and shared from the **Settings** tab.
 
-## Install
+## Installation Instructions
 
-Add `https://raw.githubusercontent.com/mcbro12345/DalamudPlugins/main/pluginmaster.json` to Dalamud's custom plugin repositories (`/xlsettings` → Experimental), then install Glamour Zones from `/xlplugins`.
+1. Open the game chat and type `/xlsettings`, then click the **Experimental** tab.
+2. Under **Custom Plugin Repositories**, paste this URL into the empty box at the bottom:
+   ```
+   https://raw.githubusercontent.com/mcbro12345/DalamudPlugins/main/pluginmaster.json
+   ```
+3. Click the **+** button to add it, then **Save and Close**.
+4. Type `/xlplugins` to open the Plugin Installer, search for "Glamour Zones," and click **Install**.
+
+That's it. Updates will show up in the Plugin Installer automatically.
+
+## Contributing
+
+Issues and PRs are welcome - see `CONTRIBUTING.md`.
+
+## AI-assisted development
+
+Parts of this codebase were built with AI coding tools. See `AI-GENERATED-NOTICE.md` for details.
+
+## Disclaimer
+
+Glamour Zones is an unofficial, fan-made project. It's not affiliated with or endorsed by Square Enix or the Dalamud project. FINAL FANTASY XIV and related trademarks belong to their respective owners.
 
 ## License
 
-MIT. See [LICENSE](LICENSE) and [AI-GENERATED-NOTICE.md](AI-GENERATED-NOTICE.md).
+MIT - see `LICENSE`. Third-party components keep their own licenses (see `THIRD_PARTY_NOTICES.md`).
