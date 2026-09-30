@@ -23,10 +23,6 @@ public sealed class Configuration : IPluginConfiguration
     // Your own names for the plates; the game doesn't let you name them.
     public Dictionary<int, string> PlateNames { get; set; } = [];
 
-    // Areas seen under the minimap in each territory, remembered as you
-    // walk around so rules can pick them later.
-    public Dictionary<uint, HashSet<uint>> KnownAreas { get; set; } = [];
-
     // Used when no rule matches: a plate number, LeaveAlone or LinkedPlate.
     public int FallbackPlate { get; set; }
 

@@ -31,7 +31,7 @@ public sealed partial class MainWindow
             rule.ExcludeLocations = exclude;
             changed = true;
         }
-        Hint("No locations picked means anywhere. Tick a whole region (like Coerthas), a city with all its districts, inns and housing (like Ishgard), a single zone, or an area shown under the minimap (like The Jeweled Crozier).\n\nPlates can only go on in resting areas (cities, inns, housing, settlements), so in open zones the plate is applied when you reach one.");
+        Hint("No locations picked means anywhere. Tick a whole region (like Coerthas), a city with all its districts, inns and housing (like Ishgard), a single zone, or a resting area inside an open zone (like Falcon's Nest).\n\nPlates can only go on in resting areas (cities, inns, housing, settlements), so in open zones the plate is applied when you reach one.");
 
         changed |= DrawCurrentPlaceButtons(rule);
         changed |= DrawChosenPlaces(rule);
@@ -39,14 +39,14 @@ public sealed partial class MainWindow
         ImGui.SetNextItemWidth(220 * ImGuiHelpers.GlobalScale);
         ImGui.InputTextWithHint("##placeSearch", "Search places", ref placeSearch, 60);
         ImGui.SameLine();
-        ImGui.TextColored(Muted, "Sorted by expansion");
+        ImGui.Checkbox("Show zones without resting areas", ref showAllZones);
+        Hint("Plates can only be put on in resting areas, so zones without one are hidden. Open zones list their resting areas (settlements like Falcon's Nest) so you can pick just those.");
 
         using (var tree = ImRaii.Child("##placeTree", new Vector2(-1, 260 * ImGuiHelpers.GlobalScale), true))
         {
             if (tree)
                 changed |= placeSearch.Length > 0 ? DrawPlaceSearch(rule) : DrawPlaceTree(rule);
         }
-        changed |= DrawKnownAreas(rule);
         ImGui.Spacing();
         return changed;
     }
@@ -127,17 +127,71 @@ public sealed partial class MainWindow
         return true;
     }
 
+    private bool showAllZones;
+
+    // Zones with no resting area can never get a plate, so they're hidden
+    // unless asked for. Zones whose data couldn't be read stay visible.
+    private bool Applicable(Place place) => showAllZones || place.TerritoryIds.Any(RestingAreas.CanApplyIn);
+
+    private List<Place> VisiblePlaces(ZoneGroupNode group) => [.. group.Places.Where(Applicable)];
+
+    private List<RegionNode> VisibleRegions(ExpansionNode expansion) =>
+        [.. expansion.Regions.Where(r => r.ZoneGroups.Any(g => g.Places.Any(Applicable)))];
+
+    // Resting areas inside an open zone, like Falcon's Nest.
+    private static List<uint> RestingAreasIn(Place place) =>
+        place.IsHousing || !place.IsOpenZone
+            ? []
+            : [.. place.TerritoryIds.Select(RestingAreas.Get).Where(i => i != null).SelectMany(i => i!.Areas).Distinct().OrderBy(GameInfo.PlaceName)];
+
+    // One zone; open zones can be expanded to pick single resting areas.
+    private bool DrawPlace(Rule rule, Place place, bool coveredByParent)
+    {
+        var changed = PlaceToggle(rule, place, coveredByParent);
+        ImGui.SameLine();
+        var areas = RestingAreasIn(place);
+        if (areas.Count == 0)
+        {
+            ImGui.TextUnformatted(place.Name);
+            if (!place.TerritoryIds.Any(RestingAreas.CanApplyIn))
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(Muted, "(no resting area)");
+            }
+            return changed;
+        }
+        using var node = ImRaii.TreeNode($"{place.Name}###p{place.TerritoryIds[0]}");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Open to pick single resting areas in this zone");
+        if (!node)
+            return changed;
+        var zoneOn = coveredByParent || place.TerritoryIds.Any(rule.Territories.Contains);
+        foreach (var area in areas)
+        {
+            using var id = ImRaii.PushId((int)area);
+            changed |= Toggle(rule.Areas, area, zoneOn, null);
+            ImGui.SameLine();
+            ImGui.TextUnformatted(GameInfo.PlaceName(area));
+        }
+        return changed;
+    }
+
     private bool DrawPlaceTree(Rule rule)
     {
         var changed = false;
+        if (!RestingAreas.Ready)
+            ImGui.TextColored(Muted, "Checking which zones have resting areas...");
         foreach (var expansion in GameInfo.Expansions)
         {
-            var picked = expansion.Regions.Sum(r => (rule.Regions.Contains(r.Id) ? 1 : 0)
+            var regions = VisibleRegions(expansion);
+            if (regions.Count == 0)
+                continue;
+            var picked = regions.Sum(r => (rule.Regions.Contains(r.Id) ? 1 : 0)
                 + r.ZoneGroups.Sum(z => (rule.ZoneGroups.Contains(z.Id) ? 1 : 0) + z.Places.Count(p => p.TerritoryIds.Any(rule.Territories.Contains))));
             using var node = ImRaii.TreeNode(picked > 0 ? $"{expansion.Name} ({picked})###{expansion.Name}" : $"{expansion.Name}###{expansion.Name}");
             if (!node)
                 continue;
-            foreach (var region in expansion.Regions)
+            foreach (var region in regions)
             {
                 using var regionId = ImRaii.PushId($"{expansion.Name}{region.Id}");
                 changed |= Toggle(rule.Regions, region.Id, false, "Whole region, in every expansion");
@@ -148,13 +202,13 @@ public sealed partial class MainWindow
                 var regionOn = rule.Regions.Contains(region.Id);
                 foreach (var group in region.ZoneGroups)
                 {
+                    var places = VisiblePlaces(group);
+                    if (places.Count == 0)
+                        continue;
                     using var groupId = ImRaii.PushId((int)group.Id);
-                    var single = group.Places.Count == 1 && group.Places[0].Name == group.Name;
-                    if (single)
+                    if (places.Count == 1 && places[0].Name == group.Name)
                     {
-                        changed |= PlaceToggle(rule, group.Places[0], regionOn);
-                        ImGui.SameLine();
-                        ImGui.TextUnformatted(group.Places[0].Name);
+                        changed |= DrawPlace(rule, places[0], regionOn);
                         continue;
                     }
                     changed |= Toggle(rule.ZoneGroups, group.Id, regionOn, $"Everything in {group.Name}: {string.Join(", ", group.Places.Select(p => p.Name))}");
@@ -163,12 +217,8 @@ public sealed partial class MainWindow
                     if (!groupNode)
                         continue;
                     var groupOn = regionOn || rule.ZoneGroups.Contains(group.Id);
-                    foreach (var place in group.Places)
-                    {
-                        changed |= PlaceToggle(rule, place, groupOn);
-                        ImGui.SameLine();
-                        ImGui.TextUnformatted(place.Name);
-                    }
+                    foreach (var place in places)
+                        changed |= DrawPlace(rule, place, groupOn);
                 }
             }
         }
@@ -206,22 +256,38 @@ public sealed partial class MainWindow
                         ImGui.TextColored(Muted, $"city/group in {region.Name}, {expansion.Name}");
                         shown++;
                     }
-                    foreach (var place in group.Places.Where(p => Hit(p.Name)))
+                    var groupOn = rule.Regions.Contains(region.Id) || rule.ZoneGroups.Contains(group.Id);
+                    foreach (var place in group.Places.Where(Applicable))
                     {
                         using var id = ImRaii.PushId($"sp{place.TerritoryIds[0]}");
-                        changed |= PlaceToggle(rule, place, rule.Regions.Contains(region.Id) || rule.ZoneGroups.Contains(group.Id));
-                        ImGui.SameLine();
-                        ImGui.TextUnformatted(place.Name);
-                        ImGui.SameLine();
-                        ImGui.TextColored(Muted, $"{group.Name}, {expansion.Name}");
-                        shown++;
+                        if (Hit(place.Name))
+                        {
+                            changed |= PlaceToggle(rule, place, groupOn);
+                            ImGui.SameLine();
+                            ImGui.TextUnformatted(place.Name);
+                            ImGui.SameLine();
+                            ImGui.TextColored(Muted, $"{group.Name}, {expansion.Name}");
+                            shown++;
+                        }
+                        // Resting areas are found by their own names too.
+                        var zoneOn = groupOn || place.TerritoryIds.Any(rule.Territories.Contains);
+                        foreach (var area in RestingAreasIn(place).Where(a => Hit(GameInfo.PlaceName(a)) && ShowOnce(("a", a))))
+                        {
+                            using var areaId = ImRaii.PushId((int)area);
+                            changed |= Toggle(rule.Areas, area, zoneOn, null);
+                            ImGui.SameLine();
+                            ImGui.TextUnformatted(GameInfo.PlaceName(area));
+                            ImGui.SameLine();
+                            ImGui.TextColored(Muted, $"resting area in {place.Name}");
+                            shown++;
+                        }
                     }
                 }
             }
         }
         seen.Clear();
         if (shown == 0)
-            ImGui.TextColored(Muted, "Nothing found. Areas inside a zone are listed below once you've visited them.");
+            ImGui.TextColored(Muted, showAllZones ? "Nothing found." : "Nothing found where plates can go on. Tick \"Show zones without resting areas\" to search everything.");
         return changed;
     }
 
@@ -276,41 +342,4 @@ public sealed partial class MainWindow
         return true;
     }
 
-    // Areas under the minimap for zones visited so far.
-    private bool DrawKnownAreas(Rule rule)
-    {
-        using var node = ImRaii.TreeNode($"Areas inside zones ({rule.Areas.Count})###areas");
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Areas (the names shown under the minimap) are learned as you walk around.\nOnly zones you've visited with the plugin on are listed.");
-        if (!node)
-            return false;
-        var changed = false;
-        var zones = config.KnownAreas
-            .Where(z => z.Value.Count > 0)
-            .Select(z => (Territory: z.Key, Name: GameInfo.TerritoryName(z.Key), Areas: z.Value))
-            .Where(z => placeSearch.Length == 0 || Hit(z.Name) || z.Areas.Any(a => Hit(GameInfo.PlaceName(a))))
-            .OrderBy(z => z.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (zones.Count == 0)
-            ImGui.TextColored(Muted, "None yet. Walk around with the plugin on and areas will show up here.");
-        foreach (var zone in zones)
-        {
-            using var zoneNode = ImRaii.TreeNode($"{zone.Name}###z{zone.Territory}");
-            if (!zoneNode)
-                continue;
-            foreach (var area in zone.Areas.OrderBy(GameInfo.PlaceName))
-            {
-                using var id = ImRaii.PushId((int)area);
-                changed |= Toggle(rule.Areas, area, false, null);
-                ImGui.SameLine();
-                ImGui.TextUnformatted(GameInfo.PlaceName(area));
-            }
-            if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Eraser, "Forget these areas"))
-            {
-                config.KnownAreas.Remove(zone.Territory);
-                changed = true;
-            }
-        }
-        return changed;
-    }
 }

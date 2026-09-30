@@ -88,7 +88,6 @@ public sealed class AutoApplier
             return;
         }
 
-        RememberArea(now);
         RecordWhatsWorn(now, utcNow);
         Current = config.Rules.FirstOrDefault(r => config.IsActive(r) && r.Matches(now));
         var ruleKey = Current?.Id.ToString() ?? $"fallback{config.FallbackFor(now.Job)}";
@@ -230,20 +229,5 @@ public sealed class AutoApplier
             return;
         state.Fingerprint = Plates.Fingerprint();
         config.Save();
-    }
-
-    private void RememberArea(Snapshot now)
-    {
-        if (now.Territory == 0)
-            return;
-        if (!config.KnownAreas.TryGetValue(now.Territory, out var areas))
-            config.KnownAreas[now.Territory] = areas = [];
-        var changed = false;
-        if (now.Area != 0)
-            changed |= areas.Add(now.Area);
-        if (now.SubArea != 0)
-            changed |= areas.Add(now.SubArea);
-        if (changed)
-            config.Save();
     }
 }

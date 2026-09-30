@@ -34,6 +34,7 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.Create<Services>();
         config = Services.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         applier = new AutoApplier(config);
+        RestingAreas.Load([.. GameInfo.Expansions.SelectMany(e => e.Regions).SelectMany(r => r.ZoneGroups).SelectMany(g => g.Places).SelectMany(p => p.TerritoryIds)]);
         mainWindow = new MainWindow(config, applier);
         windows.AddWindow(mainWindow);
 

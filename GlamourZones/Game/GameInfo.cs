@@ -24,7 +24,7 @@ public sealed record JobInfo(uint Id, string Abbreviation, string Name, JobGroup
 
 // One pickable place. Several territory ids can share a name within a zone
 // group (Chocobo Square has a few), so they're merged into one entry.
-public sealed record Place(string Name, uint[] TerritoryIds, uint RegionId, uint ZoneGroupId, bool IsHousing);
+public sealed record Place(string Name, uint[] TerritoryIds, uint RegionId, uint ZoneGroupId, bool IsHousing, bool IsOpenZone);
 
 public sealed record ZoneGroupNode(uint Id, string Name, List<Place> Places);
 public sealed record RegionNode(uint Id, string Name, List<ZoneGroupNode> ZoneGroups);
@@ -135,7 +135,7 @@ public static class GameInfo
                 {
                     var places = zone
                         .GroupBy(r => r.Row.PlaceName.Value.Name.ToString())
-                        .Select(g => new Place(g.Key, [.. g.Select(r => r.Row.RowId)], region.Key, zone.Key, g.First().Housing))
+                        .Select(g => new Place(g.Key, [.. g.Select(r => r.Row.RowId)], region.Key, zone.Key, g.First().Housing, g.First().Row.TerritoryIntendedUse.RowId == 1))
                         .ToList();
                     var zoneName = PlaceName(zone.Key);
                     if (zoneName.Contains('?') || zoneName.StartsWith('#'))

@@ -9,7 +9,7 @@ A Dalamud plugin that puts on your glamour plates for you, based on your job and
 ## What a rule can check
 
 - **Jobs**: click job icons, or a role name to pick the whole role. Base classes are available too. No jobs picked means any job.
-- **Locations**: sorted by expansion, then region, then city or zone group, then single zone. Tick a whole region (Coerthas), a city with all its districts, inns and housing (Ishgard), one zone (The Pillars), or an area from under the minimap (The Jeweled Crozier). Areas are learned as you walk around. You can also turn a rule into "anywhere except these".
+- **Locations**: sorted by expansion, then region, then city or zone group, then single zone. Tick a whole region (Coerthas), a city with all its districts, inns and housing (Ishgard), one zone (The Pillars), or a single resting area inside an open zone (Falcon's Nest). Only places where plates can actually go on are listed. You can also turn a rule into "anywhere except these".
 - **Housing**: inside your own house, your Free Company house, your private chambers, your apartment, or someone else's home.
 - **Eorzea time**: an hour range that can wrap past midnight, with Day and Night presets.
 - **Weather**: one or more kinds of weather.
