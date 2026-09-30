@@ -1,0 +1,16 @@
+{
+  "Author": "mcbro",
+  "Name": "Glamour Zones",
+  "InternalName": "GlamourZones",
+  "AssemblyVersion": "1.0.0.0",
+  "Description": "Applies your glamour plates automatically. Make rules like \"Red Mage in Ishgard wears plate 4\": pick jobs, then places sorted by expansion (whole regions, cities, single zones or the exact area you're standing in), your house or FC house, Eorzea time and weather. The first matching rule wins, each job can have its own fallback, and if you're outside a resting area the plate goes on as soon as you reach one.",
+  "ApplicableVersion": "any",
+  "Tags": ["glamour", "glamour plate", "outfit", "fashion", "automation"],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "Punchline": "The right outfit for every job and every place",
+  "IconUrl": "https://raw.githubusercontent.com/mcbro12345/GlamourZones/main/images/icon.png"
+}
